@@ -1,13 +1,17 @@
-name: Download from GDrive to Release
+name: Download from GDrive to Release V2
 
 on:
   workflow_dispatch:
     inputs:
-      gdrive_link:
-        description: '填入 Google Drive 文件夹或文件链接'
+      gdrive_id:
+        description: '请只填入 Google Drive 链接里的 ID（一长串乱码）'
         required: true
+      is_folder:
+        description: '这是一个文件夹吗？(如果是文件夹填 true，是单文件填 false)'
+        required: true
+        default: 'true'
       file_name:
-        description: '打包后的压缩包名称'
+        description: '打包后的压缩包名称 (如 models.zip)'
         required: true
         default: 'models.zip'
 
@@ -15,8 +19,19 @@ jobs:
   download_and_release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 允许脚本发布 Release
+      contents: write
     steps:
+    - name: Free Disk Space (Ubuntu) # 清理服务器无用环境，腾出约 40GB 空间供大模型使用
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
+
     - name: Install gdown
       run: pip install gdown
 
@@ -24,10 +39,14 @@ jobs:
       run: |
         mkdir downloads
         cd downloads
-        # 使用 gdown 下载输入的链接
-        gdown --folder "${{ github.event.inputs.gdrive_link }}" || gdown "${{ github.event.inputs.gdrive_link }}"
+        if[ "${{ github.event.inputs.is_folder }}" = "true" ]; then
+          gdown --folder --id "${{ github.event.inputs.gdrive_id }}"
+        else
+          gdown --id "${{ github.event.inputs.gdrive_id }}"
+        fi
         cd ..
-        zip -r ${{ github.event.inputs.file_name }} downloads/
+        # 使用 -r0 代表只打包不压缩，避免模型二次压缩导致 GitHub 服务器卡死超时
+        zip -r0 ${{ github.event.inputs.file_name }} downloads/
 
     - name: Create Release and Upload
       uses: softprops/action-gh-release@v1
