@@ -1,19 +1,15 @@
-name: Download from GDrive to Release V2
+name: Download from GDrive to Release V3
 
 on:
   workflow_dispatch:
     inputs:
       gdrive_id:
-        description: '请只填入 Google Drive 链接里的 ID（一长串乱码）'
+        description: 'Google Drive ID'
         required: true
       is_folder:
-        description: '这是一个文件夹吗？(如果是文件夹填 true，是单文件填 false)'
+        description: 'is_folder'
         required: true
-        default: 'true'
-      file_name:
-        description: '打包后的压缩包名称 (如 models.zip)'
-        required: true
-        default: 'models.zip'
+        default: 'false'
 
 jobs:
   download_and_release:
@@ -21,7 +17,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Free Disk Space (Ubuntu) # 清理服务器无用环境，腾出约 40GB 空间供大模型使用
+    - name: Free Disk Space
       uses: jlumbroso/free-disk-space@main
       with:
         tool-cache: true
@@ -45,13 +41,20 @@ jobs:
           gdown --id "${{ github.event.inputs.gdrive_id }}"
         fi
         cd ..
-        # 使用 -r0 代表只打包不压缩，避免模型二次压缩导致 GitHub 服务器卡死超时
-        zip -r0 ${{ github.event.inputs.file_name }} downloads/
+        
+        # 将下载的文件打包
+        zip -r0 models.zip downloads/
+        
+        # 核心步骤：将 11GB 的大文件切分为多个 1.9GB 的小切片，绕过 GitHub 的 2GB 限制
+        split -b 1900M models.zip "models.zip.part"
+        
+        # 删除原始大文件，腾出硬盘空间
+        rm models.zip
 
     - name: Create Release and Upload
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v1.0.${{ github.run_number }}
-        files: ${{ github.event.inputs.file_name }}
+        files: models.zip.part*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
