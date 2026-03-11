@@ -1,0 +1,38 @@
+name: Download from GDrive to Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      gdrive_link:
+        description: '填入 Google Drive 文件夹或文件链接'
+        required: true
+      file_name:
+        description: '打包后的压缩包名称'
+        required: true
+        default: 'models.zip'
+
+jobs:
+  download_and_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 允许脚本发布 Release
+    steps:
+    - name: Install gdown
+      run: pip install gdown
+
+    - name: Download from Google Drive
+      run: |
+        mkdir downloads
+        cd downloads
+        # 使用 gdown 下载输入的链接
+        gdown --folder "${{ github.event.inputs.gdrive_link }}" || gdown "${{ github.event.inputs.gdrive_link }}"
+        cd ..
+        zip -r ${{ github.event.inputs.file_name }} downloads/
+
+    - name: Create Release and Upload
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        files: ${{ github.event.inputs.file_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
