@@ -39,7 +39,7 @@ jobs:
       run: |
         mkdir downloads
         cd downloads
-        if[ "${{ github.event.inputs.is_folder }}" = "true" ]; then
+        if [ "${{ github.event.inputs.is_folder }}" = "true" ]; then
           gdown --folder --id "${{ github.event.inputs.gdrive_id }}"
         else
           gdown --id "${{ github.event.inputs.gdrive_id }}"
